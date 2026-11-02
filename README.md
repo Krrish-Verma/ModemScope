@@ -4,195 +4,298 @@
 
 ### See the signal. Understand the failure.
 
-An interactive 5G NR PUSCH link-level laboratory built with NVIDIA Sionna PHY, FastAPI, PyTorch, and Next.js.
+Explore a 5G NR uplink through physical-layer simulation, signal visualization, and repeatable experiments.
 
-[Launch locally](#quick-start) · [Architecture](#architecture) · [Engineering notes](docs/engineering-notes.md) · [Testing](#testing)
+[![Development status](https://img.shields.io/badge/status-in_development-F59E0B?style=for-the-badge)](#project-status)
+[![Sionna PHY](https://img.shields.io/badge/Sionna_PHY-2.2.0-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://nvlabs.github.io/sionna/v2.2.0/phy/api/nr/pusch.html)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](#quick-start)
+[![Next.js](https://img.shields.io/badge/Next.js-15-1D1D1F?style=for-the-badge&logo=nextdotjs&logoColor=white)](#interface)
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Sionna](https://img.shields.io/badge/Sionna_PHY-2.2.0-76B900?logo=nvidia&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-1d1d1f)
+[Start here](#quick-start) &nbsp; / &nbsp; [Explore the pipeline](#signal-pipeline) &nbsp; / &nbsp; [Check progress](#project-status) &nbsp; / &nbsp; [Engineering notes](docs/engineering-notes.md)
 
 </div>
 
-> [!IMPORTANT]
-> ModemScope is a software-based, single-user 5G NR PUSCH link-level simulator. It does **not** produce hardware RF measurements and is not a complete commercial modem or network tester.
+---
 
-## What it does
+## Wireless systems, made visible.
 
-ModemScope sends real information bits through Sionna's 5G NR `PUSCHTransmitter`, applies AWGN or Rayleigh block fading, decodes with `PUSCHReceiver`, and computes BER/BLER from the resulting bit tensors. The web app turns those experiments into an inspectable engineering record without substituting synthetic results when the PHY fails.
+ModemScope brings a signal laboratory to the browser: configure a PUSCH experiment, submit it to a Python worker, and inspect information-bit errors, I/Q samples, and the OFDM resource grid.
 
-### Implemented features
+The project connects **NVIDIA Sionna PHY 2.2**, **PyTorch**, **FastAPI**, and **Next.js**. Its engineering objective is simple: every measurement should be traceable to transmitted and decoded information bits, with the configuration and seed stored alongside it.
 
-- Validated QPSK (MCS 5) and 16-QAM (MCS 11) presets
-- Quick single-point tests and bounded nine-point Eb/N0 sweeps
-- AWGN and Rayleigh block-fading frequency-domain channels
-- Exact bit-error and block-error counts, BER, and BLER
-- Raw transmitted/received I/Q samples with truthful labeling
-- Actual OFDM transmitter resource-grid occupancy and DMRS classification
-- Deterministic, evidence-based diagnostics—no LLM or fabricated “AI” analysis
-- One-worker background job queue with live progress polling
-- Persistent SQLite experiment history and interrupted-job recovery
-- JSON and CSV exports of stored measurements
-- Responsive landing, laboratory, results, and educational routes
-- Reduced-motion behavior, keyboard focus states, errors, loading, and empty states
+> [!NOTE]
+> This is a project in development. Frontend type checking, lint, and a production build have passed locally. Sionna execution, backend tests, and the full application workflow still need validation. No measured BER/BLER performance or completed end-to-end experiment is claimed here.
 
-## Screenshots
+## Explore the laboratory
 
-Screenshots are generated from the running application after local validation and live in `docs/screenshots/`.
+| Configure | Inspect | Investigate |
+| :--- | :--- | :--- |
+| Quick tests or bounded Eb/N0 sweeps | BER and BLER with integer error counts | Rule-based observations tied to measurements |
+| QPSK / 16-QAM MCS preset definitions | Interactive Plotly performance and I/Q charts | Reproducible seeds and saved configurations |
+| AWGN / Rayleigh channel implementations | Transmitter resource-grid visualization | SQLite history and JSON / CSV export endpoints |
 
-| Product overview | Signal laboratory |
-| --- | --- |
-| ![ModemScope landing page](docs/screenshots/landing.png) | ![ModemScope signal laboratory](docs/screenshots/lab.png) |
+These features have source implementations; their verification status is listed below.
 
-## Architecture
+## Project status
+
+<details open>
+<summary><strong>Open the delivery checklist</strong></summary>
+
+| Area | Current evidence | Remaining work |
+| :--- | :--- | :--- |
+| Landing, laboratory, results, learning pages | Source written; production build passes | Browser and responsive-layout review |
+| Frontend quality checks | TypeScript and ESLint pass locally | Resolve minor CSS compatibility warnings |
+| Sionna PUSCH engine | Transmitter, receiver, channels, and metrics code written | Execute AWGN and Rayleigh on CPU |
+| Presets and reproducibility | Runtime modulation checks and seed handling written | Confirm MCS orders and repeatable counts through PHY tests |
+| FastAPI and jobs | Routes, validation, bounded worker, polling written | Exercise success, failure, and restart recovery |
+| History and exports | SQLite and export handlers written | Verify persistence and exported contents end to end |
+| Scientific validation | Unit and PHY test files written | Run suites and resolve failures |
+| Experiment comparison | Not implemented | Compatible two-run overlay |
+| Screenshots and browser automation | Not captured / implemented | Capture real UI and add workflow coverage |
+
+The next milestone is **a verified CPU PUSCH experiment from configuration to exported results**.
+
+</details>
+
+## Signal pipeline
 
 ```mermaid
 flowchart LR
-    UI[Next.js UI] -->|POST config| API[FastAPI]
-    API --> JOB[Bounded worker]
-    JOB --> TX[PUSCHTransmitter]
-    TX --> CH{Channel}
-    CH -->|AWGN| RX[PUSCHReceiver]
-    CH -->|Rayleigh + OFDM| RX
-    RX --> METRICS[Exact bit comparison]
-    METRICS --> DB[(SQLite)]
-    DB -->|Poll / export| UI
+    B[Information bits] --> T[PUSCH transmitter]
+    T --> G[QAM + DMRS resource grid]
+    G --> C{Wireless channel}
+    C --> A[AWGN]
+    C --> F[Rayleigh block fading]
+    A --> R[PUSCH receiver]
+    F --> R
+    R --> D[Decoded information bits]
+    B -. Reference bits .-> M[Exact bit comparison]
+    D --> M
+    M --> E[BER / BLER + stored evidence]
 ```
 
-See [docs/architecture.md](docs/architecture.md) for process boundaries, lifecycle behavior, and data-integrity decisions.
+<details>
+<summary><strong>Follow one transport block through the model</strong></summary>
 
-## Technology stack
+1. Construct a single-user, single-layer PUSCH configuration with four PRBs.
+2. Resolve the MCS through Sionna's transport-block configuration and check its effective modulation order.
+3. Generate information bits and transmit them through coding, mapping, and grid stages.
+4. Convert Eb/N0 to noise variance using modulation, coding, and resource-grid parameters.
+5. Apply AWGN or a Rayleigh block-fading model through `OFDMChannel`.
+6. Recover information bits with `PUSCHReceiver`.
+7. Compare transmitted and decoded tensors, then store integer counts, rates, samples, and provenance.
 
-| Layer | Technology |
-| --- | --- |
-| PHY / DSP | NVIDIA Sionna PHY 2.2, PyTorch 2.9, NumPy |
-| API | Python 3.11+, FastAPI, Pydantic |
-| Jobs / storage | Single-worker executor, SQLite |
-| Web | Next.js App Router, React, TypeScript, Framer Motion |
-| Visualization | Plotly.js plus an SVG resource-grid renderer |
-| Validation | Pytest, Ruff, TypeScript, Next.js production build |
+The Rayleigh implementation preserves random fading amplitude: per-realization normalization is disabled for the single-tap SISO channel. I/Q sampling uses matching data-resource-element indices from the first slot at each Eb/N0 point.
+
+Read [engineering-notes.md](docs/engineering-notes.md) for QAM, OFDM, channel models, Eb/N0, and interview discussion points.
+
+</details>
+
+## Interface
+
+| Route | Purpose |
+| :--- | :--- |
+| `/` | Product overview, procedural signal artwork, and labeled illustrative preview |
+| `/lab` | Experiment controls, backend health, and stored-run list |
+| `/runs/[id]` | Job progress, results, charts, diagnostics, and exports |
+| `/learn` | Explanations of the signal pipeline |
+
+A light workspace surrounds dark analysis panels, with restrained motion and responsive layouts. Screenshots will be added after the application is reviewed in a browser.
 
 ## Quick start
 
-### Requirements
+**Prerequisites:** Python 3.11+, Node.js 22.13+ recommended, and enough disk space for PyTorch and Node dependencies. CPU execution is the current implementation target. NVIDIA recommends Ubuntu 24.04 for Sionna; WSL2 is the preferred Windows development route.
 
-- Python 3.11 or newer
-- Node.js 20 or newer
-- A machine supported by PyTorch 2.9; an NVIDIA GPU is optional
+> [!TIP]
+> Expand your setup guide below. These commands describe the development workflow; dependency installation and PHY validation are still being completed.
 
-Sionna PHY and SYS require Python 3.11+ and PyTorch 2.9+. Ubuntu 24.04 is NVIDIA's recommended environment. Windows users should prefer WSL2/Ubuntu for the closest supported setup, although the CPU-only PHY stack can also work in a compatible native Python environment.
+<details>
+<summary><strong>Linux / Ubuntu / WSL2 setup</strong></summary>
 
-### 1. Backend
+From the repository root:
 
 ```bash
 python3.11 -m venv .venv
-source .venv/bin/activate                 # Windows PowerShell: .venv\Scripts\Activate.ps1
+source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r backend/requirements-dev.txt
 cd backend
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-Check `http://localhost:8000/api/health`. The response must report `sionna_available: true` before experiments can start.
-
-### 2. Frontend
-
 In a second terminal:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Copy `.env.example` to `.env.local` only if you need to override the default API or repository URL.
+</details>
 
-On Windows PowerShell, after dependencies are installed, `./scripts/dev.ps1` launches both development processes. On WSL2/Linux, use `./scripts/dev.sh`.
-
-## Running an experiment
-
-1. Open **Signal Laboratory**.
-2. Confirm the status reads **Engine ready**.
-3. Select Quick Test or an Eb/N0 Sweep.
-4. Choose a validated MCS preset and channel model.
-5. Set block workload and seed, then run the simulation.
-6. Follow the job stage to the results page.
-7. Select any measured Eb/N0 point; inspect exact counts, curves, raw I/Q samples, the resource grid, and diagnostics.
-8. Download the stored experiment as JSON or its measurements as CSV.
-
-## How the PHY model works
-
-```text
-information bits
-  → 5G transport-block CRC / LDPC / rate matching
-  → scrambling / QAM / layer mapping
-  → DMRS + OFDM resource grid
-  → AWGN or normalized Rayleigh block fading
-  → channel estimation / detection / soft demapping
-  → transport-block decoding
-  → information-bit comparison
-```
-
-Eb/N0 is converted to noise variance with Sionna's effective bits per symbol, target code rate, and resource-grid overhead. The Rayleigh model is applied by `OFDMChannel`; raw channel-impaired samples are never called “equalized.” Read the [engineering notes](docs/engineering-notes.md) for an interview-oriented explanation.
-
-## Metrics
-
-| Metric | Definition |
-| --- | --- |
-| BER | Incorrect decoded information bits ÷ transmitted information bits |
-| BLER | Transport blocks containing at least one incorrect information bit ÷ transmitted blocks |
-
-When no errors are observed, ModemScope reports the integer sample size and explicitly notes that a finite zero count does not prove a zero true error probability. Zero observations are not replaced with fabricated values for logarithmic charts.
-
-## Testing
+<details>
+<summary><strong>Windows PowerShell setup</strong></summary>
 
 From the repository root:
 
-```bash
-# Fast unit suite
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements-dev.txt
 cd backend
-../.venv/bin/python -m pytest -m "not phy"   # Windows: ..\.venv\Scripts\python.exe -m pytest -m "not phy"
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
 
-# Real Sionna AWGN, Rayleigh, preset, and reproducibility checks
-../.venv/bin/python -m pytest tests/test_phy.py -v
+In a second terminal:
 
-# Frontend static and production checks
-cd ../frontend
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Native Windows dependency compatibility still needs end-to-end confirmation. Use WSL2 if the scientific stack fails to import.
+
+</details>
+
+| Open locally | Address |
+| :--- | :--- |
+| Application | [localhost:3000](http://localhost:3000) |
+| Interactive API documentation | [localhost:8000/docs](http://localhost:8000/docs) |
+| Engine health | [localhost:8000/api/health](http://localhost:8000/api/health) |
+
+For custom frontend settings, copy `.env.example` to `frontend/.env.local` and set `NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_GITHUB_URL`. Backend database overrides must be set in the backend process environment. No paid service or API key is required.
+
+## Your first experiment
+
+After the engine is installed and verified:
+
+1. Open **Signal Laboratory** and check the engine-health indicator.
+2. Start with **Quick Test**, **QPSK / MCS 5**, **AWGN**, **8 blocks**, and seed **42**.
+3. Submit the job and follow its progress to the results page.
+4. Inspect error counts before interpreting rates; a small workload is an exploratory sample.
+5. Repeat with an Eb/N0 sweep or a larger workload and export the stored results.
+
+<details>
+<summary><strong>What should I look for in the plots?</strong></summary>
+
+- **Performance:** BER and BLER answer different questions. Inspect both the error count and denominator.
+- **I/Q samples:** transmitted and received points describe aligned data resource elements. Received samples are raw channel-impaired values, not equalized decisions.
+- **Resource grid:** classifications come from the transmitter grid and pilot mask.
+- **Diagnostics:** rule-based observations explain the sample; they do not identify hardware defects.
+
+Broad improvement with increasing Eb/N0 is an expected scientific check, not a measured result claimed by this README.
+
+</details>
+
+## Metrics with a denominator
+
+| Metric | Calculation | Interpretation |
+| :--- | :--- | :--- |
+| BER | `bit_errors / num_bits` | Fraction of decoded information bits that differ |
+| BLER | `block_errors / num_blocks` | Fraction of transport blocks containing at least one wrong information bit |
+| Runtime | Elapsed engine time | Includes work performed for this run |
+
+**Zero observed errors is a finite-sample observation.** It does not establish a zero true error probability. Logarithmic plotting and zero-value handling remain part of the visualization validation checklist.
+
+## Under the hood
+
+<details>
+<summary><strong>Architecture and technology stack</strong></summary>
+
+| Layer | Implementation |
+| :--- | :--- |
+| PHY | Sionna PHY 2.2.0, PyTorch 2.9, NumPy |
+| API | FastAPI, Pydantic, Python 3.11+ |
+| Jobs | One heavy worker; bounded submission capacity |
+| Storage | SQLite with persisted configuration and results |
+| Web | Next.js App Router, React, TypeScript, custom CSS |
+| Visualization | Plotly.js, SVG, Framer Motion, Lucide |
+
+The browser submits configuration, polls jobs, and renders API results. The worker performs PHY calculations away from the request loop. SQLite records lifecycle state; startup marks previously active jobs as interrupted.
+
+See [architecture.md](docs/architecture.md) for details.
+
+</details>
+
+<details>
+<summary><strong>API explorer</strong></summary>
+
+| Method | Endpoint | Purpose |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | Availability, version, device, capabilities |
+| `GET` | `/api/config/options` | Presets and parameter limits |
+| `POST` | `/api/runs` | Submit an experiment |
+| `GET` | `/api/runs` | Read history |
+| `GET` | `/api/runs/{id}` | Read status and results |
+| `DELETE` | `/api/runs/{id}` | Remove a finished experiment |
+| `GET` | `/api/runs/{id}/export.json` | Export a stored record |
+| `GET` | `/api/runs/{id}/export.csv` | Export completed measurement rows |
+
+FastAPI serves interactive API documentation at `/docs` when running.
+
+</details>
+
+## Testing
+
+<details>
+<summary><strong>Backend and scientific checks</strong></summary>
+
+Activate your virtual environment, then:
+
+```bash
+cd backend
+# Unit and API tests without the PHY execution suite
+python -m pytest tests --ignore=tests/test_phy.py -v
+
+# Real transmitter / channel / receiver tests
+python -m pytest tests/test_phy.py -v
+```
+
+Test files cover request bounds, exact error counts, diagnostics, storage, API validation, MCS orders, AWGN, Rayleigh, and seed reproducibility. They are written but have not yet passed a complete run. PHY tests skip when Sionna cannot import; a skip does not establish PHY correctness.
+
+</details>
+
+<details>
+<summary><strong>Frontend checks</strong></summary>
+
+```bash
+cd frontend
 npm run typecheck
+npm run lint
 npm run build
 ```
 
-The PHY tests are skipped—not faked—when Sionna is unavailable.
+All three commands passed locally against Next.js 15.5.28. The build emitted minor CSS compatibility warnings. Browser interaction tests and a complete experiment remain outstanding.
 
-## Limitations
+</details>
 
-- Single user, SISO, one transmission layer, and four PRBs
-- Frequency-domain slot simulation; no time-domain RF waveform or front-end impairment model
-- Two deliberately validated MCS presets rather than the full NR MCS space
-- Rayleigh block fading is a compact stochastic channel, not a full 3GPP 38.901 mobility scenario
-- CPU runs are supported but detailed sweeps can take materially longer
-- The first run in a process may include PyTorch/Sionna initialization overhead
-- Comparison is performed by opening/exporting stored runs; a dedicated two-run overlay control is a future enhancement
-- No authentication or multi-user isolation; designed for local portfolio use
+## Scope and next milestones
 
-## Roadmap
+This software models a subset of a 5G system: single-user, single-layer, four-PRB PUSCH in the frequency domain. It does not measure RF hardware or implement a full UE, base station, protocol stack, scheduler, or synchronization chain.
 
-- Two-run overlay comparison with compatibility checks
-- Additional validated MCS presets and configurable PRB allocations
-- 3GPP TDL/CDL channel profiles and mobility
-- Confidence intervals and adaptive Monte Carlo stopping criteria
-- Optional time-domain modeling and synchronization impairments
-- Playwright end-to-end coverage across Chromium and mobile breakpoints
+- [x] Write the web routes and backend implementation
+- [x] Pass frontend TypeScript, lint, and production build
+- [ ] Execute and validate AWGN and Rayleigh PUSCH on CPU
+- [ ] Pass backend and scientific test suites
+- [ ] Verify one complete experiment and its exports
+- [ ] Add compatible two-run comparison
+- [ ] Review browser accessibility and responsive behavior
+- [ ] Capture real screenshots and add browser automation
 
-## References and acknowledgment
+Future extensions include additional MCS presets, configurable bandwidth, confidence intervals, adaptive stopping, and 3GPP TDL/CDL channels.
 
-- [Sionna 2.2 5G NR PUSCH tutorial](https://nvlabs.github.io/sionna/phy/tutorials/notebooks/5G_NR_PUSCH.html)
-- [Sionna 2.2 PUSCH API](https://nvlabs.github.io/sionna/v2.2.0/phy/api/nr/pusch.html)
-- [Sionna installation guide](https://nvlabs.github.io/sionna/installation.html)
+## Built on open research
 
-ModemScope uses [NVIDIA Sionna](https://github.com/NVlabs/sionna), an open-source library for communication-system research. NVIDIA and Sionna are trademarks of their respective owners; this project is independent and not endorsed by NVIDIA.
+ModemScope acknowledges [NVIDIA Sionna](https://github.com/NVlabs/sionna) and follows the [5G NR PUSCH tutorial](https://nvlabs.github.io/sionna/phy/tutorials/notebooks/5G_NR_PUSCH.html), [versioned PUSCH API](https://nvlabs.github.io/sionna/v2.2.0/phy/api/nr/pusch.html), and [installation guide](https://nvlabs.github.io/sionna/installation.html).
 
-## License
+This is an independent project. NVIDIA and Sionna belong to their respective owners.
 
-MIT — see [LICENSE](LICENSE).
+---
+
+<div align="center">
+
+**ModemScope** &nbsp; / &nbsp; Signals you can inspect. Experiments you can explain.
+
+[Back to top](#modemscope) &nbsp; / &nbsp; [MIT license](LICENSE) &nbsp; / &nbsp; [Engineering notes](docs/engineering-notes.md)
+
+</div>
