@@ -1,0 +1,31 @@
+{
+  "name": "modemscope-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint app components lib --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/plotly.js": "^2.35.4",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.548.0",
+    "next": "15.5.28",
+    "plotly.js": "^3.1.2",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-plotly.js": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/react-plotly.js": "^2.6.4",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.28",
+    "typescript": "^5.9.3"
+  }
+}
